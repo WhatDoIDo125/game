@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TicTacToe - Hard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+
+        section {
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2, p {
+            font-weight: bold;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px;
+            background-color: #333;
+            color: #fff;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .loading {
+            display: block;
+            text-align: center;
+            background-color: #f0f0f0;
+            font-size: 50px;
+            margin: 50px 0;
+        }
+
+        .content {
+            display: none;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-gap: 5px;
+            position: relative;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            font-size: 24px;
+            text-align: center;
+            line-height: 100px;
+            cursor: pointer;
+            border: 1px solid #000;
+            background-color: #fff;
+            color: #333;
+        }
+
+        .line {
+            position: absolute;
+            background-color: #3498db;
+            height: 5px;
+            width: 0;
+            transition: width 0.5s ease;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #333;
+            color: #fff;
+            border: none;
+        }
+        
+        a {
+          text-decoration: none;
+          color: white;
+          font-weight: bold;
+          font-size: 25px;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 20px;
+            color: #333;
+        }
+    </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            setTimeout(function () {
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("content").style.display = "block";
+            }, 5000);
+        });
+    </script>
+</head>
+<body>
+
+    <div id="loading" class="loading">
+      <h1>Loading...</h1>
+    </div>
+
+    <header>
+        <h1>Tic Tac Toe Hard</h1>
+    </header>
+
+    <section id="content" class="content">
+        <h2>GAME</h2>
+        <button onclick="startGame()">Start the Game</button>
+        <div id="board"></div>
+        <div id="result"></div>
+
+        <script>
+            let currentPlayer;
+            let gameBoard;
+            let gameActive;
+
+            function initializeGame() {
+                currentPlayer = 'X';
+                gameBoard = Array(9).fill('');
+                gameActive = true;
+            }
+
+            function startGame() {
+                initializeGame();
+                updateBoard();
+                document.getElementById('result').textContent = '';
+                resetLine();
+            }
+
+            function handleCellClick(index) {
+                if (gameBoard[index] === '' && gameActive) {
+                    gameBoard[index] = currentPlayer;
+
+                    if (checkWin()) {
+                        endGame(`Player ${currentPlayer} wins!`);
+                        drawWinningLine();
+                    } else if (checkDraw()) {
+                        endGame('It\'s a draw!');
+                    } else {
+                        switchPlayer();
+                        updateBoard();
+
+                        if (currentPlayer === 'O') {
+                            setTimeout(botMove, 500);
+                        }
+                    }
+                }
+            }
+
+            function botMove() {
+                const emptyCells = gameBoard.reduce((acc, cell, index) => {
+                    if (cell === '') {
+                        acc.push(index);
+                    }
+                    return acc;
+                }, []);
+
+                // Check if 'O' can win in the next move
+                for (const index of emptyCells) {
+                    gameBoard[index] = 'O';
+                    if (checkWin()) {
+                        endGame('Player O (Bot) wins!');
+                        drawWinningLine();
+                        return;
+                    }
+                    gameBoard[index] = ''; // Reset the move
+                }
+
+                // Check if 'X' can win in the next move and block it
+                for (const index of emptyCells) {
+                    gameBoard[index] = 'X';
+                    if (checkWin()) {
+                        gameBoard[index] = 'O';
+                        switchPlayer();
+                        updateBoard();
+                        return;
+                    }
+                    gameBoard[index] = ''; // Reset the move
+                }
+
+                // If no winning or blocking move, choose a random empty cell
+                const randomIndex = Math.floor(Math.random() * emptyCells.length);
+                gameBoard[emptyCells[randomIndex]] = 'O';
+
+                if (checkWin()) {
+                    endGame('Player O (Bot) wins!');
+                    drawWinningLine();
+                } else if (checkDraw()) {
+                    endGame('It\'s a draw!');
+                } else {
+                    switchPlayer();
+                    updateBoard();
+                }
+            }
+
+            function switchPlayer() {
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            }
+
+            function endGame(message) {
+                gameActive = false;
+                document.getElementById('result').textContent = message;
+            }
+
+            function updateBoard() {
+                const boardElement = document.getElementById('board');
+                boardElement.innerHTML = '';
+
+                for (let i = 0; i < 9; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.textContent = gameBoard[i];
+                    cell.onclick = function () {
+                        handleCellClick(i);
+                    };
+                    boardElement.appendChild(cell);
+                }
+            }
+
+            function checkWin() {
+                const winPatterns = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                    [0, 4, 8], [2, 4, 6]             // Diagonals
+                ];
+
+                return winPatterns.some(pattern => {
+                    const [a, b, c] = pattern;
+                    return gameBoard[a] !== '' && gameBoard[a] === gameBoard[b] && gameBoard[a] === gameBoard[c];
+                });
+            }
+
+            function checkDraw() {
+                return gameBoard.every(cell => cell !== '');
+            }
+
+            function drawWinningLine() {
+                const winPatterns = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                    [0, 4, 8], [2, 4, 6]             // Diagonals
+                ];
+
+                for (const pattern of winPatterns) {
+                    const [a, b, c] = pattern;
+                    if (gameBoard[a] !== '' && gameBoard[a] === gameBoard[b] && gameBoard[a] === gameBoard[c]) {
+                        const lineElement = document.createElement('div');
+                        lineElement.className = 'line';
+                        document.getElementById('board').appendChild(lineElement);
+
+                        const cellA = document.querySelector(`.cell:nth-child(${a + 1})`);
+                        const cellC = document.querySelector(`.cell:nth-child(${c + 1})`);
+
+                        const lineLength = Math.hypot(cellA.offsetLeft - cellC.offsetLeft, cellA.offsetTop - cellC.offsetTop);
+                        lineElement.style.width = `${lineLength}px`;
+                        lineElement.style.transform = `rotate(${Math.atan2(cellC.offsetTop - cellA.offsetTop, cellC.offsetLeft - cellA.offsetLeft)}rad)`;
+                        lineElement.style.left = `${cellA.offsetLeft + cellA.offsetWidth / 2}px`;
+                        lineElement.style.top = `${cellA.offsetTop + cellA.offsetHeight / 2}px`;
+
+                        setTimeout(() => {
+                            lineElement.style.width = '1';
+                        }, 10);
+                        break;
+                    }
+                }
+            }
+
+            function resetLine() {
+                const boardElement = document.getElementById('board');
+                const lineElement = boardElement.querySelector('.line');
+                if (lineElement) {
+                    boardElement.removeChild(lineElement);
+                }
+            }
+        </script>
+    </section>
+
+    <footer>
+        <a href="menu.html">Back to Menu |</a>
+        &copy; 2024 FreeToPlay.Games.com
+    </footer>
+
+</body>
+</html>
