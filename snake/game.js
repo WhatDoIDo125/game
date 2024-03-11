@@ -160,7 +160,7 @@ var Snake = (function () {
 
         // console.debug(i + ' => player:' + player.x, player.y + ', trail:' + trail[i].x, trail[i].y);
         if (!stopped && trail[i].x == player.x && trail[i].y == player.y){
-          
+          game.reset();
         }
         ctx.fillStyle = 'lime';
       }
