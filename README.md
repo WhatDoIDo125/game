@@ -1,6 +1,6 @@
-Important: DO NOT CLAIM THIS AS YOUR OWN!
+Important: GAMES HERE ARE NOT MADE BY ME!
 
-Any code used for the game is listed under the title as a description with a link.
+CREDITS FOE THE GAMES USED: Any code used for the game is listed under the title as a description with a link.
 
 ONLY FOR PERSONAL USE!
 
