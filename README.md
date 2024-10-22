@@ -1,6 +1,6 @@
 Important: GAMES HERE ARE NOT MADE BY ME!
 
-CREDITS FOE THE GAMES USED: Any code used for the game is listed under the title as a description with a link.
+CREDITS FOE THE GAMES USED: A Link to the Github Repository or a way on how get it is ALWAYS under the Name of the game!
 
 ONLY FOR PERSONAL USE!
 
