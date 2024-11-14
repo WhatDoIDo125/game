@@ -9,7 +9,8 @@ MOUSE = {};
 MOUSE.DOWN = 1;
 MOUSE.UP = 2;
 MOUSE.MOVE = 3;
-
+// Inside Player constructor or initialization
+this.isPlacing = true; // Default to placing blocks
 // Constructor()
 //
 // Creates a new local player manager.
@@ -47,19 +48,74 @@ Player.prototype.setClient = function( client )
 // setInputCanvas( id )
 //
 // Set the canvas the renderer uses for some input operations.
+Player.prototype.setInputCanvas = function(id) {
+  var canvas = this.canvas = document.getElementById(id);
+  var t = this;
 
-Player.prototype.setInputCanvas = function( id )
-{
-	var canvas = this.canvas = document.getElementById( id );
+  // Keyboard events
+  document.onkeydown = function(e) { if (e.target.tagName != "INPUT") { t.onKeyEvent(e.keyCode, true); return false; } };
+  document.onkeyup = function(e) { if (e.target.tagName != "INPUT") { t.onKeyEvent(e.keyCode, false); return false; } };
 
-	var t = this;
-	document.onkeydown = function( e ) { if ( e.target.tagName != "INPUT" ) { t.onKeyEvent( e.keyCode, true ); return false; } }
-	document.onkeyup = function( e ) { if ( e.target.tagName != "INPUT" ) { t.onKeyEvent( e.keyCode, false ); return false; } }
-	canvas.onmousedown = function( e ) { t.onMouseEvent( e.clientX, e.clientY, MOUSE.DOWN, e.which == 3 ); return false; }
-	canvas.onmouseup = function( e ) { t.onMouseEvent( e.clientX, e.clientY, MOUSE.UP, e.which == 3 ); return false; }
-	canvas.onmousemove = function( e ) { t.onMouseEvent( e.clientX, e.clientY, MOUSE.MOVE, e.which == 3 ); return false; }
-}
+  // Mouse events
+  canvas.onmousedown = function(e) { t.onMouseEvent(e.clientX, e.clientY, MOUSE.DOWN, e.which == 3); return false; };
+  canvas.onmouseup = function(e) { t.onMouseEvent(e.clientX, e.clientY, MOUSE.UP, e.which == 3); return false; };
+  canvas.onmousemove = function(e) { t.onMouseEvent(e.clientX, e.clientY, MOUSE.MOVE, e.which == 3); return false; };
 
+  // Touch events
+  canvas.addEventListener('touchstart', function(e) {
+    if (e.touches.length == 1) { // Single touch for look-around
+      var touch = e.touches[0];
+      t.onTouchEvent(touch.clientX, touch.clientY, MOUSE.DOWN);
+    }
+  });
+  canvas.addEventListener('touchmove', function(e) {
+    if (e.touches.length == 1) { // Single touch for look-around
+      var touch = e.touches[0];
+      t.onTouchEvent(touch.clientX, touch.clientY, MOUSE.MOVE);
+    }
+  });
+  canvas.addEventListener("touchend", function(e) {
+  var touchDuration = new Date().getTime() - t.touchStartTime;
+  if (t.mouseDown) {
+    var touch = e.changedTouches[0];
+    var dx = Math.abs(t.dragStart.x - touch.clientX);
+    var dy = Math.abs(t.dragStart.y - touch.clientY);
+
+    // If it was a quick tap with minimal movement, treat it as a block action
+    if (touchDuration < 200 && dx < 10 && dy < 10) {
+      // If in place mode, we place a block, else we destroy a block
+      var destroy = !t.isPlacing; // Destroy if in destroy mode
+      t.doBlockAction(t.dragStart.x, t.dragStart.y, destroy);
+    }
+  }
+
+  t.dragging = false;
+  t.mouseDown = false;
+  t.canvas.style.cursor = "default";
+  });
+};
+
+// onTouchEvent( x, y, type )
+//
+// Hook for touch input, simulating mouse input for look-around.
+Player.prototype.onTouchEvent = function(x, y, type) {
+  if (type == MOUSE.DOWN) {
+    this.dragStart = { x: x, y: y };
+    this.mouseDown = true;
+    this.yawStart = this.targetYaw = this.angles[1];
+    this.pitchStart = this.targetPitch = this.angles[0];
+  } else if (type == MOUSE.UP) {
+    this.dragging = false;
+    this.mouseDown = false;
+    this.canvas.style.cursor = "default";
+  } else if (type == MOUSE.MOVE && this.mouseDown) {
+    this.dragging = true;
+    this.targetPitch = this.pitchStart - (y - this.dragStart.y) / 200;
+    this.targetYaw = this.yawStart + (x - this.dragStart.x) / 200;
+
+    this.canvas.style.cursor = "move";
+  }
+};
 // setMaterialSelector( id )
 //
 // Sets the table with the material selectors.
@@ -111,16 +167,21 @@ Player.prototype.on = function( event, callback )
 // onKeyEvent( keyCode, down )
 //
 // Hook for keyboard input.
+Player.prototype.onKeyEvent = function(keyCode, down) {
+  var key = String.fromCharCode(keyCode).toLowerCase();
+  this.keys[key] = down;
+  this.keys[keyCode] = down;
 
-Player.prototype.onKeyEvent = function( keyCode, down )
-{
-	var key = String.fromCharCode( keyCode ).toLowerCase();
-	this.keys[key] = down;
-	this.keys[keyCode] = down;
-	
-	if ( !down && key == "t" && this.eventHandlers["openChat"] ) this.eventHandlers.openChat();
-}
+  if (!down && key === "e") {
+    // Toggle between placing and destroying when "E" is pressed
+    this.isPlacing = !this.isPlacing;
+    console.log("Toggled mode:", this.isPlacing ? "Place Mode" : "Destroy Mode");
+  }
 
+  if (!down && key === "t" && this.eventHandlers["openChat"]) {
+    this.eventHandlers.openChat();
+  }
+};
 // onMouseEvent( x, y, type, rmb )
 //
 // Hook for mouse input.
@@ -151,23 +212,25 @@ Player.prototype.onMouseEvent = function( x, y, type, rmb )
 // doBlockAction( x, y )
 //
 // Called to perform an action based on the player's block selection and input.
+Player.prototype.doBlockAction = function(x, y, destroy) {
+  // Get the player's eye position for raycasting (to cast a ray from the player's viewpoint)
+  var bPos = new Vector(Math.floor(this.pos.x), Math.floor(this.pos.y), Math.floor(this.pos.z));
+  var block = this.canvas.renderer.pickAt(new Vector(bPos.x - 4, bPos.y - 4, bPos.z - 4), new Vector(bPos.x + 4, bPos.y + 4, bPos.z + 4), x, y);
 
-Player.prototype.doBlockAction = function( x, y, destroy )
-{
-	var bPos = new Vector( Math.floor( this.pos.x ), Math.floor( this.pos.y ), Math.floor( this.pos.z ) );
-	var block = this.canvas.renderer.pickAt( new Vector( bPos.x - 4, bPos.y - 4, bPos.z - 4 ), new Vector( bPos.x + 4, bPos.y + 4, bPos.z + 4 ), x, y );
-	
-	if ( block != false )
-	{
-		var obj = this.client ? this.client : this.world;
-		
-		if ( destroy )
-			obj.setBlock( block.x, block.y, block.z, BLOCK.AIR );
-		else
-			obj.setBlock( block.x + block.n.x, block.y + block.n.y, block.z + block.n.z, this.buildMaterial );
-	}
-}
+  if (block !== false) {
+    var obj = this.client ? this.client : this.world;
 
+    // If in place mode, place the selected block, otherwise destroy it
+    if (this.isPlacing) {
+      if (this.buildMaterial) {
+        obj.setBlock(block.x + block.n.x, block.y + block.n.y, block.z + block.n.z, this.buildMaterial);
+      }
+    } else {
+      // If in destroy mode, destroy the block
+      obj.setBlock(block.x, block.y, block.z, BLOCK.AIR);
+    }
+  }
+};
 // getEyePos()
 //
 // Returns the position of the eyes of the player for rendering.
