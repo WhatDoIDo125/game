@@ -69,6 +69,7 @@ Player.prototype.setInputCanvas = function(id) {
     }
   });
   canvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
     if (e.touches.length == 1) { // Single touch for look-around
       var touch = e.touches[0];
       t.onTouchEvent(touch.clientX, touch.clientY, MOUSE.MOVE);
